@@ -2,12 +2,12 @@ import streamlit as st
 from datetime import date, timedelta
 
 # -------------------------------
-# 🎨 PAGE CONFIG
+# PAGE CONFIG
 # -------------------------------
 st.set_page_config(page_title="Attendance Planner", layout="centered")
 
 # -------------------------------
-# 🎨 STYLE
+# STYLE
 # -------------------------------
 st.markdown("""
 <style>
@@ -33,7 +33,7 @@ st.markdown("""
     padding:15px;
     border-radius:12px;
     text-align:center;
-    font-size:18px;
+    font-size:16px;
     font-weight:bold;
     height:120px;
     display:flex;
@@ -41,29 +41,21 @@ st.markdown("""
     justify-content:center;
     flex-direction:column;
 }
-.target {
-    background:#1e3a8a;
-    color:white;
-}
-.max {
-    background:#14532d;
-    color:white;
-}
-.plan {
-    background:#7c2d12;
-    color:white;
-}
+.target { background:#1e3a8a; color:white; }
+.max { background:#14532d; color:white; }
+.plan { background:#7c2d12; color:white; }
+.bunk { background:#064e3b; color:white; }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------------------
-# 🎨 HEADER
+# HEADER
 # -------------------------------
 st.markdown('<div class="title">📊 Smart Attendance Planner</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Plan Smart • Stay Consistent • Achieve Your Goal 🎯</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 🟢 CURRENT ATTENDANCE
+# CURRENT ATTENDANCE
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📌 Current Attendance Overview")
@@ -86,7 +78,7 @@ st.success(f"📈 Current Attendance: {current_percent:.2f}%")
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 🎯 TARGET
+# TARGET
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("🎯 Set Your Attendance Goal")
@@ -102,7 +94,7 @@ st.markdown(f"""
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 📅 ATTENDANCE PERIOD
+# ATTENDANCE PERIOD
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📅 Attendance Period")
@@ -120,7 +112,7 @@ if end_date < start_date:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 📚 TIMETABLE
+# TIMETABLE
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📚 Weekly Timetable (Enter Number of Classes per Day)")
@@ -144,11 +136,10 @@ timetable = [mon, tue, wed, thu, fri, sat]
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 🎉 HOLIDAY SELECTION (AUTO ADD)
+# HOLIDAY SELECTION (FINAL FIX)
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("🎉 Holiday Selection")
-st.caption("Select dates from calendar (auto-added)")
 
 if "holiday_list" not in st.session_state:
     st.session_state.holiday_list = []
@@ -158,14 +149,15 @@ if "last_selected" not in st.session_state:
 
 selected_date = st.date_input(
     "Pick a date",
+    value=None,
     min_value=start_date,
-    max_value=end_date,
-    key="holiday_picker"
+    max_value=end_date
 )
 
-if selected_date != st.session_state.last_selected:
+# FIXED ADD LOGIC
+if selected_date and selected_date != st.session_state.last_selected:
     if selected_date.weekday() == 6:
-        st.warning("Sunday is already excluded ❌")
+        st.warning("Sunday already excluded ❌")
     elif selected_date not in st.session_state.holiday_list:
         st.session_state.holiday_list.append(selected_date)
 
@@ -173,6 +165,7 @@ if selected_date != st.session_state.last_selected:
 
 holidays = st.session_state.holiday_list
 
+# SHOW + DELETE
 if holidays:
     st.success(f"Selected {len(holidays)} holiday(s)")
 
@@ -187,31 +180,20 @@ if holidays:
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 🔢 FUTURE CLASSES
+# FUTURE CLASSES
 # -------------------------------
 total_future_classes = 0
 current_date = start_date
 
 while current_date <= end_date:
-
-    if current_date.weekday() == 6:
-        current_date += timedelta(days=1)
-        continue
-
-    if current_date in holidays:
-        current_date += timedelta(days=1)
-        continue
-
-    day = current_date.weekday()
-    if day < 6:
-        total_future_classes += timetable[day]
-
+    if current_date.weekday() != 6 and current_date not in holidays:
+        total_future_classes += timetable[current_date.weekday()]
     current_date += timedelta(days=1)
 
 st.info(f"📅 Total Future Classes Available: {total_future_classes}")
 
 # -------------------------------
-# 📊 RESULT (3 BOXES)
+# RESULT (FINAL PERFECT LOGIC)
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📊 Attendance Summary")
@@ -221,54 +203,45 @@ target = target_percent / 100
 
 max_att = (attended + total_future_classes) / (total + total_future_classes)
 
+# Immediate requirement
 x = ((target * total) - attended) / (1 - target)
-required = max(0, int(x) + 1)
+required_now = max(0, int(x) + 1)
 
-col1, col2, col3 = st.columns(3)
+# Final requirement
+needed_attend = (target * (total + total_future_classes)) - attended
+needed_attend = max(0, int(needed_attend + 0.999))
 
-# Target Box
+col1, col2, col3, col4, col5 = st.columns(5)
+
 with col1:
-    st.markdown(f"""
-    <div class="highlight target">
-    🎯 Target Goal<br>
-    {target_percent:.2f}%
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div class='highlight target'>🎯 Target<br>{target_percent:.2f}%</div>", unsafe_allow_html=True)
 
-# Max Box
 with col2:
-    st.markdown(f"""
-    <div class="highlight max">
-    🔥 Max Possible<br>
-    {max_att*100:.2f}%
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div class='highlight max'>🔥 Max<br>{max_att*100:.2f}%</div>", unsafe_allow_html=True)
 
-# Plan Box
 with col3:
-    if current >= target:
-        msg = "Already reached 🎉"
-    elif required > total_future_classes:
-        msg = "Not possible ❌"
-    else:
-        msg = f"Attend {required} classes"
+    msg = "Reached 🎉" if current >= target else f"Attend {required_now}"
+    st.markdown(f"<div class='highlight plan'>⚡ Now<br>{msg}</div>", unsafe_allow_html=True)
 
-    st.markdown(f"""
-    <div class="highlight plan">
-    📌 Your Plan<br>
-    {msg}
-    </div>
-    """, unsafe_allow_html=True)
+with col4:
+    msg = "Not possible ❌" if needed_attend > total_future_classes else f"Attend {needed_attend}"
+    st.markdown(f"<div class='highlight plan'>📌 Final<br>{msg}</div>", unsafe_allow_html=True)
+
+with col5:
+    if needed_attend > total_future_classes:
+        msg = "No bunk ❌"
+    else:
+        msg = f"Skip {total_future_classes - needed_attend}"
+    st.markdown(f"<div class='highlight bunk'>😎 Bunk<br>{msg}</div>", unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# 🎨 FOOTER
+# FOOTER
 # -------------------------------
 st.markdown("""
 <hr>
 <div style='text-align:center; color:gray;'>
-    <p>Developed by: <b>IT</b></p>
-    <p>Smart Attendance Planner • Academic Project</p>
+    <p>Developed by: <b>ME</b></p>
 </div>
 """, unsafe_allow_html=True)
