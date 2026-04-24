@@ -72,9 +72,6 @@ if attended > total:
     st.error("❌ Attended classes cannot exceed total classes")
     st.stop()
 
-current_percent = (attended / total) * 100
-st.success(f"📈 Current Attendance: {current_percent:.2f}%")
-
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
@@ -94,14 +91,18 @@ st.markdown(f"""
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# ATTENDANCE PERIOD
+# DATE + TODAY STATUS
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📅 Attendance Period")
-st.caption("From Today to Selected End Date")
 
 start_date = date.today()
-st.text_input("Start Date", value=str(start_date), disabled=True)
+st.text_input("Start Date (Auto)", value=str(start_date), disabled=True)
+
+today_status = st.radio(
+    "Did you attend today's classes?",
+    ["Present", "Absent"]
+)
 
 end_date = st.date_input("End Date")
 
@@ -115,7 +116,7 @@ st.markdown('</div>', unsafe_allow_html=True)
 # TIMETABLE
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
-st.subheader("📚 Weekly Timetable (Enter Number of Classes per Day)")
+st.subheader("📚 Weekly Timetable")
 
 col1, col2, col3 = st.columns(3)
 
@@ -136,7 +137,23 @@ timetable = [mon, tue, wed, thu, fri, sat]
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# HOLIDAY SELECTION (FINAL FIX)
+# TODAY CALCULATION
+# -------------------------------
+today_classes = timetable[start_date.weekday()] if start_date.weekday() != 6 else 0
+
+if today_status == "Present":
+    attended_updated = attended + today_classes
+else:
+    attended_updated = attended
+
+total_updated = total + today_classes
+
+current_percent = (attended_updated / total_updated) * 100
+
+st.success(f"📈 Updated Attendance (Including Today): {current_percent:.2f}%")
+
+# -------------------------------
+# HOLIDAYS
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("🎉 Holiday Selection")
@@ -148,13 +165,12 @@ if "last_selected" not in st.session_state:
     st.session_state.last_selected = None
 
 selected_date = st.date_input(
-    "Pick a date",
+    "Pick a holiday",
     value=None,
     min_value=start_date,
     max_value=end_date
 )
 
-# FIXED ADD LOGIC
 if selected_date and selected_date != st.session_state.last_selected:
     if selected_date.weekday() == 6:
         st.warning("Sunday already excluded ❌")
@@ -165,50 +181,43 @@ if selected_date and selected_date != st.session_state.last_selected:
 
 holidays = st.session_state.holiday_list
 
-# SHOW + DELETE
-if holidays:
-    st.success(f"Selected {len(holidays)} holiday(s)")
-
-    for i, d in enumerate(holidays):
-        col1, col2 = st.columns([4,1])
-        col1.write(d)
-
-        if col2.button("❌", key=f"remove_{i}"):
-            st.session_state.holiday_list.pop(i)
-            st.rerun()
+for i, d in enumerate(holidays):
+    col1, col2 = st.columns([4,1])
+    col1.write(d)
+    if col2.button("❌", key=f"remove_{i}"):
+        st.session_state.holiday_list.pop(i)
+        st.rerun()
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# FUTURE CLASSES
+# FUTURE CLASSES (FROM TOMORROW)
 # -------------------------------
 total_future_classes = 0
-current_date = start_date
+current_date = start_date + timedelta(days=1)
 
 while current_date <= end_date:
     if current_date.weekday() != 6 and current_date not in holidays:
         total_future_classes += timetable[current_date.weekday()]
     current_date += timedelta(days=1)
 
-st.info(f"📅 Total Future Classes Available: {total_future_classes}")
+st.info(f"📅 Future Classes (from tomorrow): {total_future_classes}")
 
 # -------------------------------
-# RESULT (FINAL PERFECT LOGIC)
+# FINAL CALCULATIONS
 # -------------------------------
 st.markdown('<div class="card">', unsafe_allow_html=True)
 st.subheader("📊 Attendance Summary")
 
-current = attended / total
+current = attended_updated / total_updated
 target = target_percent / 100
 
-max_att = (attended + total_future_classes) / (total + total_future_classes)
+max_att = (attended_updated + total_future_classes) / (total_updated + total_future_classes)
 
-# Immediate requirement
-x = ((target * total) - attended) / (1 - target)
+x = ((target * total_updated) - attended_updated) / (1 - target)
 required_now = max(0, int(x) + 1)
 
-# Final requirement
-needed_attend = (target * (total + total_future_classes)) - attended
+needed_attend = (target * (total_updated + total_future_classes)) - attended_updated
 needed_attend = max(0, int(needed_attend + 0.999))
 
 col1, col2, col3, col4, col5 = st.columns(5)
@@ -242,6 +251,6 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("""
 <hr>
 <div style='text-align:center; color:gray;'>
-    <p>Developed by: <b>ME</b></p>
+    <p>Developed by: <b>YOU</b></p>
 </div>
 """, unsafe_allow_html=True)
