@@ -7,7 +7,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 # -------------------------------
 # API KEY (PUT YOUR KEY HERE)
 # -------------------------------
-GOOGLE_API_KEY = "YOUR_API_KEY"
+GOOGLE_API_KEY = "AIzaSyBc_7HxEEg65k8xeP9WmJiqzA8ZsW8w08g"
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-1.5-flash",
