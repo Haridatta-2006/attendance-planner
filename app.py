@@ -1,15 +1,29 @@
 import streamlit as st
 from datetime import date
 
+# AI imports
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+# -------------------------------
+# API KEY (PUT YOUR KEY HERE)
+# -------------------------------
+GOOGLE_API_KEY = "YOUR_API_KEY"
+
+llm = ChatGoogleGenerativeAI(
+    model="gemini-1.5-flash",
+    google_api_key=GOOGLE_API_KEY,
+    temperature=0.7
+)
+
 # -------------------------------
 # PAGE CONFIG
 # -------------------------------
-st.set_page_config(page_title="Smart Attendance Planner", layout="centered")
+st.set_page_config(page_title="Smart Attendance Planner + AI", layout="centered")
 
 # -------------------------------
 # HEADER
 # -------------------------------
-st.title("📊 Smart Attendance Planner")
+st.title("📊 Smart Attendance Planner + 🤖 AI Assistant")
 
 # -------------------------------
 # WEEKLY TIMETABLE (TOP)
@@ -45,7 +59,7 @@ if attended > total:
     st.stop()
 
 # -------------------------------
-# TODAY DETAILS
+# TODAY SECTION
 # -------------------------------
 today = date.today()
 today_classes = timetable[today.weekday()] if today.weekday() != 6 else 0
@@ -64,9 +78,6 @@ remaining_today = today_classes - attended_today
 
 st.write(f"📌 Remaining classes today: {remaining_today}")
 
-# -------------------------------
-# FUTURE DECISION
-# -------------------------------
 attend_more = st.number_input(
     "Out of remaining classes, how many will you attend?",
     min_value=0,
@@ -76,47 +87,74 @@ attend_more = st.number_input(
 # -------------------------------
 # CALCULATIONS
 # -------------------------------
-
-# Final attended today
 final_today_attended = attended_today + attend_more
 
-# Updated totals
 attended_updated = attended + final_today_attended
 total_updated = total + today_classes
 
-# Current final percentage (end of today)
+# Percentages
+today_percent = (final_today_attended / today_classes * 100) if today_classes > 0 else 0
 final_percent = (attended_updated / total_updated) * 100
-
-# Max possible (if attend all today)
 max_percent = ((attended + today_classes) / (total + today_classes)) * 100
-
-# Now percentage (current situation)
 now_percent = ((attended + attended_today) / (total + today_classes)) * 100
 
-# Bunk count
+# Bunk
 bunk = remaining_today - attend_more
 
 # -------------------------------
 # RESULT DISPLAY
 # -------------------------------
-st.subheader("📊 Today's Attendance Summary")
+st.subheader("📊 Today's Summary")
 
 col1, col2, col3, col4, col5 = st.columns(5)
 
-with col1:
-    st.metric("📍 Today %", f"{final_percent:.2f}%")
+col1.metric("📍 Today %", f"{today_percent:.2f}%")
+col2.metric("🔥 Max %", f"{max_percent:.2f}%")
+col3.metric("⚡ Now %", f"{now_percent:.2f}%")
+col4.metric("📌 Final %", f"{final_percent:.2f}%")
+col5.metric("😎 Bunk", f"{bunk}")
 
-with col2:
-    st.metric("🔥 Max %", f"{max_percent:.2f}%")
+# -------------------------------
+# AI CHATBOT SECTION
+# -------------------------------
+st.markdown("---")
+st.subheader("🤖 AI Attendance Assistant")
 
-with col3:
-    st.metric("⚡ Now %", f"{now_percent:.2f}%")
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
-with col4:
-    st.metric("📌 Final %", f"{final_percent:.2f}%")
+user_input = st.text_input("Ask anything about your attendance:")
 
-with col5:
-    st.metric("😎 Bunk", f"{bunk}")
+if user_input:
+    context = f"""
+    Student Attendance Data:
+    - Attended: {attended}
+    - Total: {total}
+    - Today Classes: {today_classes}
+    - Attended Today: {attended_today}
+    - Remaining Today: {remaining_today}
+    - Planning to Attend: {attend_more}
+    - Final Today Attendance %: {today_percent:.2f}
+    - Overall Final %: {final_percent:.2f}
+
+    Give smart advice like a helpful assistant.
+    """
+
+    prompt = context + "\nUser Question: " + user_input
+
+    response = llm.invoke(prompt)
+
+    st.session_state.chat_history.append(("You", user_input))
+    st.session_state.chat_history.append(("AI", response.content))
+
+# -------------------------------
+# CHAT DISPLAY
+# -------------------------------
+for role, msg in st.session_state.chat_history:
+    if role == "You":
+        st.markdown(f"**🧑 You:** {msg}")
+    else:
+        st.markdown(f"**🤖 AI:** {msg}")
 
 # -------------------------------
 # FOOTER
