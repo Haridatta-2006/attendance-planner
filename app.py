@@ -70,20 +70,6 @@ st.markdown("""
 .plan { background: linear-gradient(135deg, #7c2d12, #f97316); color: white; }
 .bunk { background: linear-gradient(135deg, #064e3b, #10b981); color: white; }
 .metric-value { font-size: 24px; font-weight: 900; margin-top: 5px; }
-
-/* Customizing Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 24px;
-    justify-content: center;
-}
-.stTabs [data-baseweb="tab"] {
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-left: 20px;
-    padding-right: 20px;
-    background-color: transparent;
-    border-radius: 8px 8px 0 0;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -94,11 +80,15 @@ st.markdown('<div class="title">📊 Smart Attendance Planner</div>', unsafe_all
 st.markdown('<div class="subtitle">Plan Smart • Stay Consistent • Achieve Your Goal 🎯</div>', unsafe_allow_html=True)
 
 # -------------------------------
-# TABS SETUP
+# NAVIGATION STATE
 # -------------------------------
-tab1, tab2 = st.tabs(["⚙️ Setup & Configuration", "📊 Dashboard & Analytics"])
+if 'submitted' not in st.session_state:
+    st.session_state.submitted = False
 
-with tab1:
+# -------------------------------
+# SETUP SECTION
+# -------------------------------
+with st.expander("⚙️ Setup & Configuration", expanded=not st.session_state.submitted):
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("📌 Current Attendance & Goal")
     col1, col2, col3 = st.columns(3)
@@ -179,54 +169,66 @@ with tab1:
             st.info("No holidays selected yet.")
     st.markdown('</div>', unsafe_allow_html=True)
 
+    if not st.session_state.submitted:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🚀 Submit & View Dashboard", use_container_width=True, type="primary"):
+            st.session_state.submitted = True
+            st.rerun()
 
 # -------------------------------
-# CALCULATIONS
+# DASHBOARD SECTION
 # -------------------------------
-today_classes = timetable[start_date.weekday()] if start_date.weekday() != 6 else 0
-if today_status == "Present":
-    attended_updated = attended + today_classes
-    total_updated = total + today_classes
-elif today_status == "Absent":
-    attended_updated = attended
-    total_updated = total + today_classes
-else: # No Classes Today
-    attended_updated = attended
-    total_updated = total
+if st.session_state.submitted:
+    
+    st.markdown("<hr>", unsafe_allow_html=True)
+    if st.button("🔙 Edit Setup"):
+        st.session_state.submitted = False
+        st.rerun()
+    
+    # -------------------------------
+    # CALCULATIONS
+    # -------------------------------
+    today_classes = timetable[start_date.weekday()] if start_date.weekday() != 6 else 0
+    if today_status == "Present":
+        attended_updated = attended + today_classes
+        total_updated = total + today_classes
+    elif today_status == "Absent":
+        attended_updated = attended
+        total_updated = total + today_classes
+    else: # No Classes Today
+        attended_updated = attended
+        total_updated = total
 
-current_percent = (attended_updated / total_updated * 100) if total_updated > 0 else 0
+    current_percent = (attended_updated / total_updated * 100) if total_updated > 0 else 0
 
-total_future_classes = 0
-current_date = start_date + timedelta(days=1)
-while current_date <= end_date:
-    if current_date.weekday() != 6 and current_date not in st.session_state.holiday_list:
-        total_future_classes += timetable[current_date.weekday()]
-    current_date += timedelta(days=1)
+    total_future_classes = 0
+    current_date = start_date + timedelta(days=1)
+    while current_date <= end_date:
+        if current_date.weekday() != 6 and current_date not in st.session_state.holiday_list:
+            total_future_classes += timetable[current_date.weekday()]
+        current_date += timedelta(days=1)
 
-current_ratio = attended_updated / total_updated if total_updated > 0 else 0
-target_ratio = target_percent / 100
-max_att = (attended_updated + total_future_classes) / (total_updated + total_future_classes) if (total_updated + total_future_classes) > 0 else 0
+    current_ratio = attended_updated / total_updated if total_updated > 0 else 0
+    target_ratio = target_percent / 100
+    max_att = (attended_updated + total_future_classes) / (total_updated + total_future_classes) if (total_updated + total_future_classes) > 0 else 0
 
-if target_ratio < 1:
-    x = ((target_ratio * total_updated) - attended_updated) / (1 - target_ratio)
-    required_now = max(0, int(x) + 1)
-else:
-    required_now = float('inf')
+    if target_ratio < 1:
+        x = ((target_ratio * total_updated) - attended_updated) / (1 - target_ratio)
+        required_now = max(0, int(x) + 1)
+    else:
+        required_now = float('inf')
 
-needed_attend = (target_ratio * (total_updated + total_future_classes)) - attended_updated
-needed_attend = max(0, int(needed_attend + 0.999))
+    needed_attend = (target_ratio * (total_updated + total_future_classes)) - attended_updated
+    needed_attend = max(0, int(needed_attend + 0.999))
 
+    # Check if balloons should be shown (if target reached just now)
+    if "prev_percent" not in st.session_state:
+        st.session_state.prev_percent = current_percent
 
-# Check if balloons should be shown (if target reached just now)
-if "prev_percent" not in st.session_state:
+    if current_percent >= target_percent and st.session_state.prev_percent < target_percent:
+        st.balloons()
     st.session_state.prev_percent = current_percent
 
-if current_percent >= target_percent and st.session_state.prev_percent < target_percent:
-    st.balloons()
-st.session_state.prev_percent = current_percent
-
-
-with tab2:
     st.markdown('<div class="card">', unsafe_allow_html=True)
     st.subheader("📈 Attendance Overview")
     
