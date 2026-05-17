@@ -323,12 +323,7 @@ class PlannerApp:
             </div>""", unsafe_allow_html=True)
             
         with c3:
-            if metrics['current_percent'] >= self.model.data.target_percent:
-                msg = "Reached ✨"
-            elif metrics['immediate_required'] > metrics['simulated_future']:
-                msg = "Impossible ❌"
-            else:
-                msg = f"{metrics['immediate_required']} classes"
+            msg = "Reached ✨" if metrics['current_percent'] >= self.model.data.target_percent else f"{metrics['immediate_required']} classes"
             st.markdown(f"""
             <div class='stat-box stat-now'>
                 <div class='stat-title'>Immediate</div>
